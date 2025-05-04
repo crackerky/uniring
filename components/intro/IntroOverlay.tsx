@@ -13,7 +13,7 @@ export function IntroOverlay({
   onComplete, 
   autoSkipDelay = 15000 // Default to 15 seconds
 }: IntroOverlayProps) {
-  const [isVisible, setIsVisible] = useState<boolean>(false);
+  const [isVisible, setIsVisible] = useState<boolean | undefined>(undefined);
   const [activePhrase, setActivePhrase] = useState(0);
   const [phrasesCompleted, setPhrasesCompleted] = useState<boolean[]>([false, false, false]);
   const [canDismiss, setCanDismiss] = useState(false);
@@ -97,13 +97,19 @@ export function IntroOverlay({
   useEffect(() => {
     if (typeof window === 'undefined') return;
     
+    console.log("Initializing intro overlay");
+    
     const hasSeenIntro = safeLocalStorage.getItem("hasSeenIntro");
     console.log("localStorage hasSeenIntro:", hasSeenIntro);
     
+    console.log("Before conditional - pathname:", pathname, "hasSeenIntro:", hasSeenIntro);
     if (pathname === "/" && hasSeenIntro !== "true") {
       console.log("Setting intro visible to TRUE");
       setIsVisible(true);
       document.body.style.overflow = 'hidden';
+    } else {
+      console.log("Setting intro visible to FALSE");
+      setIsVisible(false);
     }
     
     return () => {
@@ -113,9 +119,12 @@ export function IntroOverlay({
 
   // 自動スキップ機能
   useEffect(() => {
+    console.log("Auto-skip effect running, isVisible:", isVisible);
     if (isVisible !== true) return;
     
+    console.log(`Setting auto-skip timer for ${autoSkipDelay}ms`);
     const timer = setTimeout(() => {
+      console.log("Auto-skip timer triggered");
       handleComplete();
     }, autoSkipDelay);
     
@@ -124,6 +133,7 @@ export function IntroOverlay({
 
   // スクロールでフレーズを進める（デバウンス付き）
   useEffect(() => {
+    console.log("Scroll effect setup, isVisible:", isVisible);
     if (isVisible !== true) return;
     
     let isProcessingScroll = false;
@@ -133,18 +143,22 @@ export function IntroOverlay({
       if (isProcessingScroll) return;
       
       const currentScroll = window.scrollY;
+      console.log("Scroll detected:", currentScroll, "previous:", scrollRef.current);
       
       // 意味のあるスクロールのみ処理
       if (currentScroll - scrollRef.current > scrollThreshold) {
         isProcessingScroll = true;
+        console.log("Significant scroll detected");
         
         // 現在のフレーズが最小時間表示された場合のみ次のフレーズへ
         if (activePhrase < phrases.length - 1 && phrasesCompleted[activePhrase]) {
+          console.log(`Moving to next phrase: ${activePhrase} -> ${activePhrase + 1}`);
           setActivePhrase(prev => prev + 1);
           scrollRef.current = currentScroll;
         } 
         // すべてのフレーズが表示された場合のみ完了可能
         else if (activePhrase === phrases.length - 1 && canDismiss) {
+          console.log("All phrases completed, dismissing intro");
           handleComplete();
         }
         
@@ -266,9 +280,11 @@ export function IntroOverlay({
     window.location.reload();
   };
 
+  console.log("Render - isVisible:", isVisible, "activePhrase:", activePhrase, "canDismiss:", canDismiss);
+
   return (
-    <AnimatePresence mode="wait">
-      {isVisible && (
+    <AnimatePresence>
+      {isVisible === true && (
         <motion.div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black overflow-hidden"
           initial={{ opacity: 1 }}
